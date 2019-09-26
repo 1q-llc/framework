@@ -26,8 +26,8 @@ import org.specs2.mutable.Specification
 /**
  * System under specification for MongoDirectMonoClient.
  */
-class MongoDirectMongoClientSpec extends Specification with MongoTestKit {
-  "MongoDirectMongoClient Specification".title
+class LegacyMongoDirectMongoClientSpec extends Specification with MongoTestKit {
+  "LegacyMongoDirectMongoClient Specification".title
 
   "MongoClient example" in {
 

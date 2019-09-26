@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 WorldWide Conferencing, LLC
+ * Copyright 2019 WorldWide Conferencing, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,35 +24,35 @@ import util.Helpers._
 import org.bson.types.ObjectId
 import org.specs2.mutable.Specification
 
-import com.mongodb.DBObject
+import org.bson._
 
-object JObjectParserSpec extends Specification  {
-  "JObjectParser Specification".title
+object JsonParserSpec extends Specification  {
+  "JsonParser Specification".title
 
-  def buildTestData: (ObjectId, DBObject) = {
+  def buildTestData: (ObjectId, BsonDocument) = {
     val oid = ObjectId.get
-    val dbo = JObjectParser.parse(("x" -> oid.toString))(DefaultFormats)
+    val dbo = JsonParser.parse(("x" -> oid.toString))(DefaultFormats)
     (oid, dbo)
   }
 
-  "JObjectParser" should {
+  "JsonParser" should {
     "convert strings to ObjectId by default" in {
       val (oid, dbo) = buildTestData
-      val xval = tryo(dbo.get("x").asInstanceOf[ObjectId])
+      val xval = tryo(dbo.getObjectId("x"))
 
       xval.toList map { x =>
-        x must_== oid
+        x.getValue must_== oid
       }
 
       xval.isDefined must_== true
     }
     "not convert strings to ObjectId when configured not to" in {
-      JObjectParser.stringProcessor.doWith((s: String) => s) {
+      JsonParser.stringProcessor.doWith((s: String) => new BsonString(s)) {
         val (oid, dbo) = buildTestData
-        val xval = tryo(dbo.get("x").asInstanceOf[String])
+        val xval = tryo(dbo.getString("x"))
 
         xval.toList map { x =>
-          x must_== oid.toString
+          x.getValue must_== oid.toString
         }
 
         xval.isDefined must_== true

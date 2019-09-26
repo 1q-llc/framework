@@ -19,7 +19,7 @@ package net.liftweb.mongodb
 import java.util.concurrent.ConcurrentHashMap
 
 import com.mongodb.MongoException
-import com.mongodb.async.client.{MongoClient, MongoCollection, MongoDatabase}
+import com.mongodb.async.client.{MongoCollection, MongoDatabase}
 import com.mongodb.async.SingleResultCallback
 import net.liftweb.util.ConnectionIdentifier
 import org.bson.Document
@@ -50,6 +50,7 @@ private[mongodb] class SingleBooleanVoidCallback(f: () => Unit) extends SingleRe
   * Example:
   *
   * {{{
+  * import com.mongodb.MongoClientSettings
   * import com.mongodb.async.client.MongoClients
   * import net.liftweb.util.{ConnectionIdentifier, DefaultConnectionIdentifier}
   * import org.bson.codecs.configuration.CodecRegistries
@@ -65,7 +66,7 @@ private[mongodb] class SingleBooleanVoidCallback(f: () => Unit) extends SingleRe
   * }
   *
   * val codecRegistry = CodecRegistries.fromRegistries(
-  *   com.mongodb.MongoClient.getDefaultCodecRegistry(),
+  *   MongoClientSettings.getDefaultCodecRegistry(),
   *   CodecRegistries.fromCodecs(new LongPrimitiveCodec, new IntegerPrimitiveCodec)
   * )
 

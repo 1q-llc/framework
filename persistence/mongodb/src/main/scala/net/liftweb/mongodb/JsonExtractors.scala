@@ -91,6 +91,7 @@ object JsonDate {
   }
 
   def apply(dt: Date)(implicit formats: Formats): JValue = ("$dt" -> formats.dateFormat.format(dt))
+  def apply(dt: Long)(implicit formats: Formats): JValue = ("$dt" -> formats.dateFormat.format(new Date(dt)))
 }
 
 object JsonDateTime {

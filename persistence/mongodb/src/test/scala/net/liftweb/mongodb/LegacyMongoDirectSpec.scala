@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 WorldWide Conferencing, LLC
+ * Copyright 2019 WorldWide Conferencing, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,14 +19,10 @@ package mongodb
 
 import net.liftweb.util.{Helpers, DefaultConnectionIdentifier}
 
-import scala.collection.JavaConverters._
 import java.util.UUID
 import java.util.regex.Pattern
 
-import org.bson.Document
 import com.mongodb.{WriteConcern, BasicDBObject, BasicDBObjectBuilder, MongoException}
-import com.mongodb.client.model.{IndexOptions, ReplaceOptions, UpdateOptions}
-import com.mongodb.client.model.Filters.{and, eq => eqs}
 
 import org.specs2.mutable.Specification
 
@@ -37,8 +33,8 @@ import net.liftweb.common.Failure
 /**
  * System under specification for MongoDirect.
  */
-class MongoDirectSpec extends Specification with MongoTestKit {
-  "MongoDirect Specification".title
+class LegacyMongoDirectSpec extends Specification with MongoTestKit {
+  "LegacyMongoDirect Specification".title
 
   def date(s: String) = DefaultFormats.dateFormat.parse(s).get
 
@@ -47,13 +43,13 @@ class MongoDirectSpec extends Specification with MongoTestKit {
     checkMongoIsRunning
 
     // build the DBObject
-    val doc = new Document
+    val doc = new BasicDBObject
 
     doc.put("name", "MongoDB")
     doc.put("type", "database")
     doc.put("count", 1: java.lang.Integer)
 
-    val info = new Document
+    val info = new BasicDBObject
 
     info.put("x", 203: java.lang.Integer)
     info.put("y", 102: java.lang.Integer)
@@ -61,47 +57,49 @@ class MongoDirectSpec extends Specification with MongoTestKit {
     doc.put("info", info)
 
     // use the Mongo instance directly
-    MongoDB.useDatabase(DefaultConnectionIdentifier) { db =>
+    MongoDB.use(DefaultConnectionIdentifier) ( db => {
       val coll = db.getCollection("testCollection")
 
       // save the doc to the db
-      coll.insertOne(doc)
+      coll.save(doc)
 
       // get the doc back from the db and compare them
-      coll.find().first() must_== doc
+      coll.findOne must_== doc
 
       // upsert
       doc.put("type", "document")
       doc.put("count", 2: java.lang.Integer)
-      val q = new Document("name", "MongoDB") // the query to select the document(s) to update
+      val q = new BasicDBObject("name", "MongoDB") // the query to select the document(s) to update
       val o = doc // the new object to update with, replaces the entire document, except possibly _id
-      val ropts = new ReplaceOptions().upsert(false)
-      coll.replaceOne(q, o, ropts)
+      val upsert = false // if the database should create the element if it does not exist
+      val apply = false // if an _id field should be added to the new object
+      coll.update(q, o, upsert, apply)
 
       // get the doc back from the db and compare
-      coll.find.first.get("type") must_== "document"
-      coll.find.first.get("count") must_== 2
+      coll.findOne.get("type") must_== "document"
+      coll.findOne.get("count") must_== 2
 
       // modifier operations $inc, $set, $push...
-      val o2 = new Document
-      o2.put("$inc", new Document("count", 1)) // increment count by 1
-      o2.put("$set", new Document("type", "docdb")) // set type
-      val uopts = new UpdateOptions().upsert(false)
-      coll.updateOne(q, o2, uopts)
+      val o2 = new BasicDBObject
+      o2.put("$inc", new BasicDBObject("count", 1)) // increment count by 1
+      o2.put("$set", new BasicDBObject("type", "docdb")) // set type
+      coll.update(q, o2, false, false)
 
       // get the doc back from the db and compare
-      coll.find.first.get("type") must_== "docdb"
-      coll.find.first.get("count") must_== 3
+      coll.findOne.get("type") must_== "docdb"
+      coll.findOne.get("count") must_== 3
 
       if (!debug) {
         // delete it
-        coll.deleteOne(new Document("_id", doc.get("_id")))
-        coll.countDocuments() must_== 0
+        coll.remove(new BasicDBObject("_id", doc.get("_id")))
+        coll.find.count must_== 0
         coll.drop
       }
 
-      success
-    }
+      // server-side eval
+      val six = db.eval(" function() { return 3+3; } ")
+      six must_== 6
+    })
   }
 
   "Mongo tutorial 2 example" in {
@@ -109,46 +107,46 @@ class MongoDirectSpec extends Specification with MongoTestKit {
     checkMongoIsRunning
 
     // use a DBCollection directly
-    MongoDB.useMongoCollection("iDoc", classOf[Document]) { coll =>
+    MongoDB.useCollection("iDoc") ( coll => {
       // insert multiple documents
       for (i <- List.range(1, 101)) {
-        coll.insertOne(new Document().append("i", i))
+        coll.insert(new BasicDBObject().append("i", i))
       }
 
       // create an index
-      coll.createIndex(new Document("i", 1))  // create index on "i", ascending
+      coll.createIndex(new BasicDBObject("i", 1))  // create index on "i", ascending
 
       // count the docs
-      coll.countDocuments() must_== 100
+      coll.getCount must_== 100
 
       // get the count using a query
-      coll.countDocuments(new Document("i", new Document("$gt", 50))) must_== 50
+      coll.getCount(new BasicDBObject("i", new BasicDBObject("$gt", 50))) must_== 50
 
       // use a cursor to get all docs
       val cur = coll.find
 
-      cur.iterator.asScala.toList.size must_== 100
+      cur.count must_== 100
 
       // get a single document with a query ( i = 71 )
-      val query = new Document("i", 71)
+      val query = new BasicDBObject("i", 71)
       val cur2 = coll.find(query)
 
-      cur2.iterator.asScala.toList.size must_== 1
-      cur2.first.get("i") must_== 71
+      cur2.count must_== 1
+      cur2.next.get("i") must_== 71
 
       // get a set of documents with a query
       // e.g. find all where i > 50
-      val cur3 = coll.find(new Document("i", new Document("$gt", 50)))
+      val cur3 = coll.find(new BasicDBObject("i", new BasicDBObject("$gt", 50)))
 
-      cur3.iterator.asScala.toList.size must_== 50
+      cur3.count must_== 50
 
       // range - 20 < i <= 30
-      val cur4 = coll.find(new Document("i", new Document("$gt", 20).append("$lte", 30)))
+      val cur4 = coll.find(new BasicDBObject("i", new BasicDBObject("$gt", 20).append("$lte", 30)))
 
-      cur4.iterator.asScala.toList.size must_== 10
+      cur4.count must_== 10
 
       // limiting result set
-      val cur5 = coll.find(new Document("i", new Document("$gt", 50))).limit(3).iterator
+      val cur5 = coll.find(new BasicDBObject("i", new BasicDBObject("$gt", 50))).limit(3)
 
       var cntr5 = 0
       while(cur5.hasNext) {
@@ -158,7 +156,7 @@ class MongoDirectSpec extends Specification with MongoTestKit {
       cntr5 must_== 3
 
       // skip
-      val cur6 = coll.find(new Document("i", new Document("$gt", 50))).skip(10).iterator
+      val cur6 = coll.find(new BasicDBObject("i", new BasicDBObject("$gt", 50))).skip(10)
 
       var cntr6 = 0
       while(cur6.hasNext) {
@@ -168,7 +166,7 @@ class MongoDirectSpec extends Specification with MongoTestKit {
       cntr6 must_== 40
 
       /* skip and limit */
-      val cur7 = coll.find.skip(10).limit(20).iterator
+      val cur7 = coll.find.skip(10).limit(20)
 
       var cntr7 = 0
       while(cur7.hasNext) {
@@ -178,7 +176,7 @@ class MongoDirectSpec extends Specification with MongoTestKit {
       cntr7 must_== 20
 
       // sorting
-      val cur8 = coll.find.sort(new Document("i", -1)).iterator // descending
+      val cur8 = coll.find.sort(new BasicDBObject("i", -1)) // descending
 
       var cntr8 = 100
       while(cur8.hasNext) {
@@ -187,17 +185,17 @@ class MongoDirectSpec extends Specification with MongoTestKit {
       }
 
       // remove some docs by a query
-      coll.deleteMany(new Document("i", new Document("$gt", 50)))
+      coll.remove(new BasicDBObject("i", new BasicDBObject("$gt", 50)))
 
-      coll.countDocuments() must_== 50
+      coll.find.count must_== 50
 
       if (!debug) {
         // delete the rest of the rows
-        coll.deleteMany(new Document("i", new Document("$lte", 50)))
-        coll.countDocuments() must_== 0
+        coll.remove(new BasicDBObject("i", new BasicDBObject("$lte", 50)))
+        coll.find.count must_== 0
         coll.drop
       }
-    }
+    })
     success
   }
 
@@ -206,16 +204,16 @@ class MongoDirectSpec extends Specification with MongoTestKit {
     checkMongoIsRunning
 
     // use a Mongo instance directly
-    MongoDB.useDefaultDatabase { db =>
+    MongoDB.use ( db => {
       val coll = db.getCollection("testCollection")
 
       // create a unique index on name
-      coll.createIndex(new Document("name", 1), (new IndexOptions).unique(true))
+      coll.createIndex(new BasicDBObject("name", 1), new BasicDBObject("unique", true))
 
       // build the DBObjects
-      val doc = new Document
-      val doc2 = new Document
-      val doc3 = new Document
+      val doc = new BasicDBObject
+      val doc2 = new BasicDBObject
+      val doc3 = new BasicDBObject
 
       doc.put("name", "MongoSession")
       doc.put("type", "db")
@@ -230,42 +228,46 @@ class MongoDirectSpec extends Specification with MongoTestKit {
       doc3.put("count", 1: java.lang.Integer)
 
       // save the docs to the db
-      Helpers.tryo(coll.withWriteConcern(WriteConcern.ACKNOWLEDGED).insertOne(doc)).toOption must beSome
-      coll.withWriteConcern(WriteConcern.ACKNOWLEDGED).insertOne(doc2) must throwA[MongoException]
-      Helpers.tryo(coll.withWriteConcern(WriteConcern.ACKNOWLEDGED).insertOne(doc2)) must beLike {
+      Helpers.tryo(coll.save(doc, WriteConcern.SAFE)).toOption must beSome
+      coll.save(doc2, WriteConcern.SAFE) must throwA[MongoException]
+      Helpers.tryo(coll.save(doc2, WriteConcern.SAFE)) must beLike {
         case Failure(msg, _, _) =>
           msg must contain("E11000")
       }
-      Helpers.tryo(coll.withWriteConcern(WriteConcern.ACKNOWLEDGED).insertOne(doc3)).toOption must beSome
+      Helpers.tryo(coll.save(doc3, WriteConcern.SAFE)).toOption must beSome
 
       // query for the docs by type
-      val qry = eqs("type", "db")
-      coll.countDocuments(qry) must_== 2
+      val qry = new BasicDBObject("type", "db")
+      coll.find(qry).count must_== 2
 
       // modifier operations $inc, $set, $push...
-      val o2 = new Document
-      o2.put("$inc", new Document("count", 1)) // increment count by 1
-      coll.updateOne(qry, o2).getModifiedCount must_== 1
-      coll.updateOne(qry, o2).getMatchedCount must_== 1
+      val o2 = new BasicDBObject
+      o2.put("$inc", new BasicDBObject("count", 1)) // increment count by 1
+      coll.update(qry, o2, false, false).getN must_== 1
+      coll.update(qry, o2, false, false).isUpdateOfExisting must_== true
 
       // this update query won't find any docs to update
-      coll.updateOne(eqs("name", "None"), o2).getModifiedCount must_== 0
+      coll.update(new BasicDBObject("name", "None"), o2, false, false).getN must_== 0
 
       // regex query example
       val key = "name"
       val regex = "^Mongo"
-      coll.countDocuments(eqs(key, Pattern.compile(regex))) must_== 2
+      val cur = coll.find(
+          BasicDBObjectBuilder.start.add(key, Pattern.compile(regex)).get)
+      cur.count must_== 2
 
       // use regex and another dbobject
-      coll.countDocuments(and(eqs(key, Pattern.compile(regex)), eqs("count", 1))) must_== 1
+      val cur2 = coll.find(
+          BasicDBObjectBuilder.start.add(key, Pattern.compile(regex)).add("count", 1).get)
+      cur2.count must_== 1
 
       if (!debug) {
         // delete them
-        coll.deleteMany(eqs("type", "db")).getDeletedCount must_== 2
-        coll.countDocuments must_== 0
+        coll.remove(new BasicDBObject("type", "db")).getN must_== 2
+        coll.find.count must_== 0
         coll.drop
       }
-    }
+    })
     success
   }
 
@@ -273,16 +275,17 @@ class MongoDirectSpec extends Specification with MongoTestKit {
 
     checkMongoIsRunning
 
-    MongoDB.useMongoCollection("examples.uuid", classOf[Document]) { coll =>
+    MongoDB.useCollection("examples.uuid") { coll =>
       val uuid = UUID.randomUUID
-      val doc = new Document("_id", uuid).append("name", "doc")
-      coll.insertOne(doc)
+      val dbo = new BasicDBObject("_id", uuid).append("name", "dbo")
+      coll.save(dbo)
 
-      val qry = eqs("_id", uuid)
-      val fromDb = coll.find(qry).first
+      val qry = new BasicDBObject("_id", uuid)
+      val dbo2 = coll.findOne(qry)
 
-      fromDb.get("_id") must_== doc.get("_id")
-      fromDb.get("name") must_== doc.get("name")
+      dbo2.get("_id") must_== dbo.get("_id")
+      dbo2.get("name") must_== dbo.get("name")
     }
   }
 }
+

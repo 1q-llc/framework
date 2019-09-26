@@ -29,7 +29,7 @@ import org.specs2.mutable.Specification
 
 import json._
 
-package mongoclienttestdocs {
+package legacymongoclienttestdocs {
   case class SessCollection(_id: ObjectId, name: String, dbtype: String, count: Int)
     extends MongoDocument[SessCollection] {
 
@@ -46,10 +46,10 @@ package mongoclienttestdocs {
 /**
  * Systems under specification for MongoDocumentMongoClient.
  */
-class MongoDocumentMongoClientSpec extends Specification with MongoTestKit {
-  "MongoDocumentMongoClient Specification".title
+class LegacyMongoDocumentMongoClientSpec extends Specification with MongoTestKit {
+  "LegacyMongoDocumentMongoClient Specification".title
 
-  import mongoclienttestdocs._
+  import legacymongoclienttestdocs._
 
   "MongoClient example" in {
 

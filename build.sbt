@@ -1,14 +1,14 @@
 import Dependencies._
 import LiftSbtHelpers._
 
-organization in ThisBuild          := "net.liftweb"
-version in ThisBuild               := "3.3.0"
+organization in ThisBuild          := "com.github.scullxbones"
+version in ThisBuild               := "3.3.0-LJ-patched"
 homepage in ThisBuild              := Some(url("http://www.liftweb.net"))
 licenses in ThisBuild              += ("Apache License, Version 2.0", url("http://www.apache.org/licenses/LICENSE-2.0.txt"))
 startYear in ThisBuild             := Some(2006)
 organizationName in ThisBuild      := "WorldWide Conferencing, LLC"
 scalaVersion in ThisBuild          := "2.12.6"
-crossScalaVersions in ThisBuild    := Seq("2.12.6", "2.11.11")
+crossScalaVersions in ThisBuild    := Seq("2.12.6")
 
 libraryDependencies in ThisBuild ++= Seq(specs2, specs2Matchers, specs2Mock, scalacheck, scalatest)
 
@@ -21,7 +21,7 @@ publishTo in ThisBuild := {
     Some(Opts.resolver.sonatypeStaging)
   }
 }
-scmInfo in ThisBuild   := Some(ScmInfo(url("https://github.com/lift/framework"), "scm:git:https://github.com/lift/framework.git"))
+scmInfo in ThisBuild   := Some(ScmInfo(url("https://github.com/scullxbones/framework"), "scm:git:https://github.com/scullxbones/framework.git"))
 pomExtra in ThisBuild  := Developers.toXml
 
 credentials in ThisBuild += Credentials(BuildPaths.getGlobalSettingsDirectory(state.value, BuildPaths.getGlobalBase(state.value)) / ".credentials")
@@ -86,6 +86,7 @@ lazy val markdown =
 
 lazy val json =
   coreProject("json")
+    .dependsOn(common)
     .settings(
       description := "JSON Library",
       parallelExecution in Test := false,

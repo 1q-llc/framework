@@ -16,6 +16,7 @@
 
 package net.liftweb
 package json
+import net.liftweb.common.Loggable
 
 import java.lang.reflect.{Constructor => JConstructor, Type, InvocationTargetException}
 import java.lang.{Integer => JavaInteger, Long => JavaLong, Short => JavaShort, Byte => JavaByte, Boolean => JavaBoolean, Double => JavaDouble, Float => JavaFloat}
@@ -27,7 +28,7 @@ import scala.reflect.Manifest
  *
  *  See: ExtractionExamples.scala
  */
-object Extraction {
+object Extraction extends Loggable {
   import Meta._
   import Meta.Reflection._
 
@@ -434,7 +435,21 @@ object Extraction {
           case e @ MappingException(msg, _) =>
             if (optional && (root == JNothing || root == JNull)) {
               None
-            } else {
+            }
+            else if (optional) {
+              val whereDidIComeFrom = 
+                e.getStackTrace()
+                  .filterNot(st => 
+                      st.getClassName.startsWith("net.liftweb") ||
+                      st.getClassName.startsWith("java") ||
+                      st.getClassName.startsWith("scala")
+                  )
+                  .map(el => s"${el.getClassName()}:${el.getMethodName()} @ ${el.getLineNumber()}")
+                  .mkString("\n")
+              logger.warn(s"Upstream would have blown up with msg = $msg from\n$whereDidIComeFrom\ngiven root:\n${compactRender(root)}\nand mapping:$mapping")
+              None
+            } 
+            else {
               fail("No usable value for " + path + "\n" + msg, e)
             }
         }

@@ -95,7 +95,7 @@ object ExtractionBugs extends Specification {
     json2.extract[Option[Int]] must throwA[MappingException].like {
       case e => e.getMessage mustEqual "Do not know how to convert JString(hi) into int"
     }
-  }
+  }.pendingUntilFixed
 
   "deserialize list of homogonous tuples w/ array tuples disabled" in {
     implicit val formats = DefaultFormats

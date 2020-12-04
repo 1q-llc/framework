@@ -2,7 +2,7 @@ import Dependencies._
 import LiftSbtHelpers._
 
 organization in ThisBuild          := "com.github.scullxbones"
-version in ThisBuild               := "3.4.3"
+version in ThisBuild               := "3.4.3-LJ-patched"
 homepage in ThisBuild              := Some(url("http://www.liftweb.net"))
 licenses in ThisBuild              += ("Apache License, Version 2.0", url("http://www.apache.org/licenses/LICENSE-2.0.txt"))
 startYear in ThisBuild             := Some(2006)
@@ -12,7 +12,7 @@ val scala211Version = "2.11.12"
 val scala212Version = "2.12.12"
 val scala213Version = "2.13.2"
 
-val crossUpTo212 = Seq(scala212Version, scala211Version)
+val crossUpTo212 = Seq(scala212Version)
 val crossUpTo213 = scala213Version +: crossUpTo212
 
 scalaVersion in ThisBuild          := scala212Version
@@ -105,6 +105,7 @@ lazy val json_scalaz7 =
       description := "JSON Library based on Scalaz 7",
       libraryDependencies ++= Seq(scalaz7)
     )
+    .settings(crossScalaVersions := crossUpTo213)
 
 lazy val json_ext =
   coreProject("json-ext")
